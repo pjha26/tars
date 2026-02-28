@@ -94,3 +94,39 @@ export const setOffline = mutation({
         }
     },
 });
+
+export const getUsers = query({
+    args: {
+        searchTerm: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            return [];
+        }
+
+        const currentUser = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .unique();
+
+        if (!currentUser) return [];
+
+        let users = await ctx.db.query("users").collect();
+
+        // Filter out current user
+        users = users.filter((u) => u._id !== currentUser._id);
+
+        // If searchTerm is provided and not empty, filter by name
+        if (args.searchTerm && args.searchTerm.trim() !== "") {
+            const lowerSearch = args.searchTerm.toLowerCase();
+            users = users.filter((u) => u.name.toLowerCase().includes(lowerSearch));
+        }
+
+        return users.sort((a, b) => {
+            // sort online users first
+            if (a.isOnline === b.isOnline) return a.name.localeCompare(b.name);
+            return a.isOnline ? -1 : 1;
+        });
+    },
+});
