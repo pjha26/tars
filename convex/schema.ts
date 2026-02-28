@@ -12,10 +12,20 @@ export default defineSchema({
     }).index("by_clerkId", ["clerkId"]),
 
     conversations: defineTable({
-        participantIds: v.array(v.id("users")),
+        isGroup: v.optional(v.boolean()),
+        name: v.optional(v.string()), // For group chats
         lastMessageId: v.optional(v.id("messages")),
         updatedAt: v.number(),
-    }).index("by_participant_and_updated", ["participantIds", "updatedAt"]), // Basic index, we might need custom logic to find conversations by user
+    }),
+
+    conversationMembers: defineTable({
+        conversationId: v.id("conversations"),
+        userId: v.id("users"),
+        hasReadLastMessage: v.optional(v.boolean()),
+    })
+        .index("by_userId", ["userId"])
+        .index("by_conversationId", ["conversationId"])
+        .index("by_conversation_and_user", ["conversationId", "userId"]),
 
     messages: defineTable({
         conversationId: v.id("conversations"),
