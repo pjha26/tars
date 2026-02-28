@@ -1,65 +1,91 @@
-import Image from "next/image";
+"use client";
+
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useEffect } from "react";
+import { SignInButton, SignOutButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="flex h-screen w-full">
+      <AuthLoading>
+        <div className="flex h-full w-full items-center justify-center bg-slate-50">
+          <div className="animate-pulse flex items-center gap-2 text-slate-500">
+            <div className="w-4 h-4 rounded-full bg-slate-400 animate-bounce"></div>
+            <div className="w-4 h-4 rounded-full bg-slate-400 animate-bounce delay-75"></div>
+            <div className="w-4 h-4 rounded-full bg-slate-400 animate-bounce delay-150"></div>
+          </div>
+        </div>
+      </AuthLoading>
+      <Unauthenticated>
+        <div className="flex bg-slate-50 h-full w-full items-center justify-center flex-col gap-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-5xl font-extrabold tracking-tight text-slate-900">Tars Live Chat</h1>
+            <p className="text-lg text-slate-500 max-w-sm mx-auto">Connect and message with others in real-time, instantly.</p>
+          </div>
+          <div className="flex gap-4">
+            <SignInButton mode="modal">
+              <button className="px-6 py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors">Sign In</button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="px-6 py-3 bg-white border border-slate-200 text-slate-900 font-medium rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Sign Up</button>
+            </SignUpButton>
+          </div>
+        </div>
+      </Unauthenticated>
+      <Authenticated>
+        <ChatApp />
+      </Authenticated>
+    </main>
+  );
+}
+
+function ChatApp() {
+  const { user } = useUser();
+  const storeUser = useMutation(api.users.storeUser);
+
+  useEffect(() => {
+    if (user) {
+      storeUser();
+    }
+  }, [user, storeUser]);
+
+  return (
+    <div className="flex w-full h-full bg-white text-slate-900 overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-80 border-r flex flex-col bg-slate-50/50 relative z-10">
+        <div className="h-16 border-b flex justify-between items-center px-4 bg-white/50 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <UserButton afterSignOutUrl="/" />
+            <span className="font-semibold text-sm whitespace-nowrap overflow-hidden text-ellipsis w-48">
+              {user?.fullName || "Welcome"}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 py-4 space-y-4">
+          <div>
+            <h3 className="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Users</h3>
+            {/* Component to list users */}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-white relative z-0">
+        <div className="h-16 border-b flex items-center justify-center bg-white/50 backdrop-blur-md">
+          <p className="text-sm text-slate-500 font-medium">Select a conversation to start chatting</p>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-4 bg-slate-50/30">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-3xl">
+            💬
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Your Messages</h2>
+          <p className="text-slate-500 text-center max-w-sm">
+            Send private messages to a friend. Click on a user from the sidebar to start a new conversation.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
