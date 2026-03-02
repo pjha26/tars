@@ -124,3 +124,47 @@ export const getMyConversations = query({
             .sort((a, b) => b.updatedAt - a.updatedAt);
     }
 });
+
+// Create a group conversation
+export const createGroupConversation = mutation({
+    args: {
+        name: v.string(),
+        memberIds: v.array(v.id("users")),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        const currentUser = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .unique();
+        if (!currentUser) throw new Error("User not found");
+
+        if (args.memberIds.length < 2) throw new Error("Group chat needs at least 2 other members");
+
+        const conversationId = await ctx.db.insert("conversations", {
+            isGroup: true,
+            name: args.name,
+            updatedAt: Date.now(),
+        });
+
+        // Add creator
+        await ctx.db.insert("conversationMembers", {
+            conversationId,
+            userId: currentUser._id,
+            hasReadLastMessage: true,
+        });
+
+        // Add other members
+        for (const memberId of args.memberIds) {
+            await ctx.db.insert("conversationMembers", {
+                conversationId,
+                userId: memberId,
+                hasReadLastMessage: false,
+            });
+        }
+
+        return conversationId;
+    }
+});

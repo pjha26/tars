@@ -158,3 +158,74 @@ export const markRead = mutation({
         }
     }
 });
+
+// Soft delete a message (only sender can delete)
+export const deleteMessage = mutation({
+    args: {
+        messageId: v.id("messages"),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        const currentUser = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .unique();
+        if (!currentUser) throw new Error("User not found");
+
+        const message = await ctx.db.get(args.messageId);
+        if (!message) throw new Error("Message not found");
+        if (message.senderId !== currentUser._id) throw new Error("Can only delete your own messages");
+
+        await ctx.db.patch(args.messageId, {
+            isDeleted: true,
+            content: "",
+            reactions: [],
+        });
+    }
+});
+
+// Toggle a reaction on a message
+export const toggleReaction = mutation({
+    args: {
+        messageId: v.id("messages"),
+        emoji: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        const currentUser = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+            .unique();
+        if (!currentUser) throw new Error("User not found");
+
+        const message = await ctx.db.get(args.messageId);
+        if (!message) throw new Error("Message not found");
+        if (message.isDeleted) throw new Error("Cannot react to deleted messages");
+
+        const reactions = message.reactions || [];
+        const existingReaction = reactions.find((r) => r.emoji === args.emoji);
+
+        if (existingReaction) {
+            const hasReacted = existingReaction.userIds.includes(currentUser._id);
+            if (hasReacted) {
+                // Remove user from this reaction
+                existingReaction.userIds = existingReaction.userIds.filter((id) => id !== currentUser._id);
+                // Remove reaction entirely if no users left
+                const updatedReactions = reactions.filter((r) => r.userIds.length > 0);
+                await ctx.db.patch(args.messageId, { reactions: updatedReactions });
+            } else {
+                // Add user to existing reaction
+                existingReaction.userIds.push(currentUser._id);
+                await ctx.db.patch(args.messageId, { reactions });
+            }
+        } else {
+            // Create new reaction
+            reactions.push({ emoji: args.emoji, userIds: [currentUser._id] });
+            await ctx.db.patch(args.messageId, { reactions });
+        }
+    }
+});
