@@ -114,7 +114,8 @@ export const getMyConversations = query({
                     otherUser,
                     hasReadLastMessage: m.hasReadLastMessage,
                     lastMessage,
-                    unreadCount
+                    unreadCount,
+                    memberCount: allMembers.length,
                 };
             })
         );
