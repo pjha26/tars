@@ -91,15 +91,21 @@ function AuthenticatedApp() {
 function ChatApp() {
   const { user } = useUser();
   const storeUser = useMutation(api.users.storeUser);
+  const seedData = useMutation(api.seed.seedData);
 
   const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
     if (user) {
-      storeUser();
+      storeUser().then(() => {
+        if (!seeded) {
+          seedData().then(() => setSeeded(true)).catch(() => setSeeded(true));
+        }
+      });
     }
-  }, [user, storeUser]);
+  }, [user, storeUser, seedData, seeded]);
 
   const handleSelectConversation = (convId: Id<"conversations">, otherUser: any) => {
     setSelectedConversationId(convId);
