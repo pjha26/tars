@@ -2,9 +2,14 @@
 
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useEffect } from "react";
-import { SignInButton, SignOutButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
+import { ChatSidebar } from "@/components/chat-sidebar";
+import { ChatArea } from "@/components/chat-area";
+import { Id } from "../../convex/_generated/dataModel";
+
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 export default function Home() {
   return (
@@ -35,15 +40,23 @@ export default function Home() {
         </div>
       </Unauthenticated>
       <Authenticated>
-        <ChatApp />
+        <AuthenticatedApp />
       </Authenticated>
     </main>
   );
 }
 
+function AuthenticatedApp() {
+  useOnlineStatus();
+  return <ChatApp />;
+}
+
 function ChatApp() {
   const { user } = useUser();
   const storeUser = useMutation(api.users.storeUser);
+
+  const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -51,40 +64,57 @@ function ChatApp() {
     }
   }, [user, storeUser]);
 
+  const handleSelectConversation = (convId: Id<"conversations">, otherUser: any) => {
+    setSelectedConversationId(convId);
+    setSelectedUser(otherUser);
+  };
+
+  const clearSelection = () => {
+    setSelectedConversationId(null);
+    setSelectedUser(null);
+  };
+
   return (
-    <div className="flex w-full h-full bg-white text-slate-900 overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-80 border-r flex flex-col bg-slate-50/50 relative z-10">
-        <div className="h-16 border-b flex justify-between items-center px-4 bg-white/50 backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <UserButton afterSignOutUrl="/" />
-            <span className="font-semibold text-sm whitespace-nowrap overflow-hidden text-ellipsis w-48">
-              {user?.fullName || "Welcome"}
-            </span>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-2 py-4 space-y-4">
-          <div>
-            <h3 className="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Users</h3>
-            {/* Component to list users */}
-          </div>
-        </div>
+    <div className="flex w-full h-full bg-slate-50 text-slate-900 overflow-hidden">
+      {/* Sidebar - hidden on mobile if conversation is selected */}
+      <div className={`shrink-0 h-full border-r bg-slate-50 ${selectedConversationId ? 'hidden md:flex' : 'flex w-full md:w-auto'}`}>
+        <ChatSidebar
+          onSelectConversation={handleSelectConversation}
+          selectedConversationId={selectedConversationId || undefined}
+        />
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white relative z-0">
-        <div className="h-16 border-b flex items-center justify-center bg-white/50 backdrop-blur-md">
-          <p className="text-sm text-slate-500 font-medium">Select a conversation to start chatting</p>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center p-4 bg-slate-50/30">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-3xl">
-            💬
+      {/* Main Chat Area - hidden on mobile if no conversation is selected */}
+      <div className={`flex-1 flex flex-col h-full bg-white relative z-0 ${!selectedConversationId ? 'hidden md:flex' : 'flex'}`}>
+        {!selectedConversationId ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-4 bg-slate-50/30">
+            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4 text-3xl shadow-sm">
+              💬
+            </div>
+            <h2 className="text-xl font-semibold mb-2 text-slate-800">Your Messages</h2>
+            <p className="text-slate-500 text-center max-w-sm">
+              Send private messages to a friend. Click on a user from the sidebar to start a new conversation.
+            </p>
           </div>
-          <h2 className="text-xl font-semibold mb-2">Your Messages</h2>
-          <p className="text-slate-500 text-center max-w-sm">
-            Send private messages to a friend. Click on a user from the sidebar to start a new conversation.
-          </p>
-        </div>
+        ) : (
+          <div className="flex flex-col h-full">
+            {/* Mobile Back Button */}
+            <div className="md:hidden bg-white/80 backdrop-blur-md border-b px-2 py-2 flex items-center shrink-0 z-10 absolute top-0 left-0 w-full h-16">
+              <button
+                onClick={clearSelection}
+                className="px-3 py-1.5 text-sm hover:bg-slate-100 rounded-md font-medium text-slate-600 flex items-center gap-1 z-20 absolute left-2"
+              >
+                ← Back
+              </button>
+            </div>
+            <div className="flex-1 h-full w-full">
+              <ChatArea
+                conversationId={selectedConversationId}
+                otherUser={selectedUser}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
